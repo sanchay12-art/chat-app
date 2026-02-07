@@ -7,12 +7,10 @@
 
 <style>
 :root{
-  --bg:#efeae2;
+  --bg:#ece5dd;
   --header:#075e54;
-  --my:#dcf8c6;
-  --other:#ffffff;
-  --accent:#25d366;
-  --text:#222;
+  --myMsg:#dcf8c6;
+  --otherMsg:#ffffff;
 }
 *{box-sizing:border-box}
 body{
@@ -20,27 +18,11 @@ body{
   font-family:"Segoe UI", Arial;
   background:var(--bg);
   height:100vh;
-  overflow:hidden;
-}
-
-/* ===== SPLASH ===== */
-#splash{
-  position:fixed;
-  inset:0;
-  background:linear-gradient(135deg,#075e54,#25d366);
-  color:white;
   display:flex;
   flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  z-index:999;
-  animation:fadeOut 1s ease 3s forwards;
 }
-#splash h1{font-size:28px;margin:0}
-#splash p{margin-top:10px;font-size:14px;opacity:.9}
-@keyframes fadeOut{to{opacity:0;visibility:hidden}}
 
-/* ===== HEADER ===== */
+/* HEADER */
 .header{
   background:var(--header);
   color:white;
@@ -50,34 +32,50 @@ body{
   font-weight:600;
 }
 
-/* ===== USERNAME ===== */
-.username{
+/* USERNAME */
+.username-box{
   padding:8px;
-  background:#f6f6f6;
+  background:#f7f7f7;
 }
 .username input{
   width:100%;
   padding:10px;
   border-radius:8px;
   border:1px solid #ccc;
+  outline:none;
 }
 
-/* ===== CHAT ===== */
+/* CHAT AREA */
 .chat{
   height:calc(100vh - 190px);
   overflow-y:auto;
   padding:10px;
 }
 
-/* ===== MESSAGE ===== */
+/* MESSAGE COMMON */
 .msg{
   max-width:75%;
   padding:8px 12px;
   margin:8px 0;
   border-radius:14px;
   font-size:14px;
-  color:var(--text);
-  opacity:0;
+  line-height:1.4;
+  word-wrap:break-word;
+  clear:both;
+}
+
+/* LEFT (OTHER USER) */
+.left{
+  background:var(--otherMsg);
+  float:left;
+  border-bottom-left-radius:0;
+}
+
+/* RIGHT (MY MESSAGE) */
+.right{
+  background:var(--myMsg);
+  float:right;
+  border-bottom-right-radius:0;
 }
 .user{
   font-size:11px;
@@ -85,33 +83,7 @@ body{
   margin-bottom:3px;
 }
 
-/* RIGHT (SEND) */
-.right{
-  background:var(--my);
-  margin-left:auto;
-  border-bottom-right-radius:0;
-  animation:sendAnim .35s ease forwards;
-}
-
-/* LEFT (RECEIVE) */
-.left{
-  background:var(--other);
-  margin-right:auto;
-  border-bottom-left-radius:0;
-  animation:receiveAnim .35s ease forwards;
-}
-
-/* ANIMATIONS */
-@keyframes sendAnim{
-  from{transform:translateX(40px) scale(.9);opacity:0}
-  to{transform:translateX(0) scale(1);opacity:1}
-}
-@keyframes receiveAnim{
-  from{transform:translateX(-40px) scale(.9);opacity:0}
-  to{transform:translateX(0) scale(1);opacity:1}
-}
-
-/* ===== INPUT ===== */
+/* INPUT AREA */
 .input-box{
   display:flex;
   padding:10px;
@@ -122,6 +94,7 @@ body{
   padding:10px 15px;
   border-radius:25px;
   border:1px solid #ccc;
+  outline:none;
 }
 .input-box button{
   margin-left:8px;
@@ -132,6 +105,18 @@ body{
   background:var(--accent);
   color:white;
   font-size:18px;
+  transition:.2s;
+}
+.input-box button:active{
+  transform:scale(.9);
+}
+
+/* ============ FOOTER ============ */
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#555;
+  padding:6px;
 }
 .input-box button:active{transform:scale(.9)}
 
@@ -166,12 +151,6 @@ body{
   <button id="send">➤</button>
 </div>
 
-<div class="footer">Developed by Sanchay Dutt</div>
-
-<!-- 🔊 SOUND FILES -->
-<audio id="sendSound" src="send.mp3"></audio>
-<audio id="receiveSound" src="receive.mp3"></audio>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
@@ -196,19 +175,19 @@ function send(){
   message.value="";
 }
 
-socket.on("receiveMessage",data=>{
-  const div=document.createElement("div");
-  const mine = data.user===username.value;
+socket.on("receiveMessage", data=>{
+  const div = document.createElement("div");
 
-  div.className="msg "+(mine?"right":"left");
-  div.innerHTML=`<div class="user">${data.user}</div>${data.message}`;
+  // MY message = RIGHT | OTHER = LEFT
+  div.className = "msg " + (data.user===username.value ? "right":"left");
+
+  div.innerHTML = `
+    <div class="user">${data.user}</div>
+    <div>${data.message}</div>
+  `;
+
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
-
-  if(!mine){
-    receiveSound.currentTime = 0;
-    receiveSound.play();
-  }
+  chat.scrollTop = chat.scrollHeight;
 });
 </script>
 
