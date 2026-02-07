@@ -1,31 +1,27 @@
 const express = require("express");
 const http = require("http");
-const { Server } = require("socket.io");
-const path = require("path");
+const socketIO = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = socketIO(server);
 
-// Static folder
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static("public"));
 
-// Socket connection
 io.on("connection", (socket) => {
-  console.log("User connected");
 
   socket.on("sendMessage", (data) => {
-    io.emit("receiveMessage", data); // sabko message bhejega
+    data.id = Date.now(); // unique message id
+    io.emit("receiveMessage", data);
   });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected");
+  // SEEN EVENT
+  socket.on("messageSeen", (msgId) => {
+    io.emit("messageSeenUpdate", msgId);
   });
+
 });
 
-// ❗ VERY IMPORTANT FOR RENDER
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+server.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
