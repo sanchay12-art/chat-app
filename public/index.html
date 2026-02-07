@@ -104,6 +104,20 @@ body{
   to{transform:translateX(0) scale(1);opacity:1}
 }
 
+/* TICKS (MINIMAL – UI SAME) */
+.tick{
+  font-size:11px;
+  margin-left:6px;
+  color:#777;
+}
+.seen{
+  color:#2196f3; /* BLUE TICK */
+}
+.tick-box{
+  text-align:right;
+  margin-top:2px;
+}
+
 /* INPUT */
 .input-box{
   display:flex;
@@ -159,16 +173,10 @@ body{
 
 <div class="footer">Developed by Sanchay Dutt</div>
 
-<!-- 🔊 SOUND FILES -->
-<audio id="sendSound" src="send.mp3"></audio>
-<audio id="receiveSound" src="receive.mp3"></audio>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const chat = document.getElementById("chat");
-const sendSound = document.getElementById("sendSound");
-const receiveSound = document.getElementById("receiveSound");
 
 document.getElementById("send").onclick = send;
 document.getElementById("message").addEventListener("keypress",e=>{
@@ -181,25 +189,36 @@ function send(){
   if(!user || !msg) return;
 
   socket.emit("sendMessage",{user,message:msg});
-
-  sendSound.currentTime = 0;
-  sendSound.play();
-
   message.value="";
 }
 
 socket.on("receiveMessage",data=>{
-  const div=document.createElement("div");
   const mine = data.user === username.value;
+  const div = document.createElement("div");
 
-  div.className="msg "+(mine?"right":"left");
-  div.innerHTML=`<div class="user">${data.user}</div>${data.message}`;
+  div.className = "msg " + (mine ? "right" : "left");
+  div.setAttribute("data-id", data.id);
+
+  div.innerHTML = `
+    <div class="user">${data.user}</div>
+    <div>${data.message}</div>
+    ${mine ? `<div class="tick-box">
+      <span class="tick" id="tick-${data.id}">✔✔</span>
+    </div>` : ``}
+  `;
+
   chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
+  chat.scrollTop = chat.scrollHeight;
 
   if(!mine){
-    receiveSound.currentTime = 0;
-    receiveSound.play();
+    socket.emit("messageSeen", data.id);
+  }
+});
+
+socket.on("messageSeenUpdate", (msgId) => {
+  const tick = document.getElementById("tick-" + msgId);
+  if(tick){
+    tick.classList.add("seen"); // BLUE ✔✔
   }
 });
 </script>
