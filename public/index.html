@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>WhatsApp Style Chat</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+  --bg:#ece5dd;
+  --header:#075e54;
+  --myMsg:#dcf8c6;
+  --otherMsg:#ffffff;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Segoe UI, Arial;
+  background:var(--bg);
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+}
+
+/* HEADER */
+.header{
+  background:var(--header);
+  color:white;
+  padding:14px;
+  text-align:center;
+  font-size:18px;
+  font-weight:600;
+}
+
+/* USERNAME */
+.username-box{
+  padding:8px;
+  background:#f7f7f7;
+}
+.username-box input{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+
+/* CHAT AREA */
+.chat{
+  flex:1;
+  padding:10px;
+  overflow-y:auto;
+}
+
+/* MESSAGE COMMON */
+.msg{
+  max-width:75%;
+  padding:8px 12px;
+  margin:6px 0;
+  border-radius:10px;
+  font-size:14px;
+  line-height:1.4;
+  word-wrap:break-word;
+  clear:both;
+}
+
+/* LEFT (OTHER USER) */
+.left{
+  background:var(--otherMsg);
+  float:left;
+  border-bottom-left-radius:0;
+}
+
+/* RIGHT (MY MESSAGE) */
+.right{
+  background:var(--myMsg);
+  float:right;
+  border-bottom-right-radius:0;
+}
+
+/* USER NAME */
+.user{
+  font-size:11px;
+  color:#555;
+  margin-bottom:3px;
+}
+
+/* INPUT AREA */
+.input-box{
+  display:flex;
+  padding:10px;
+  background:#f0f0f0;
+}
+.input-box input{
+  flex:1;
+  padding:10px 15px;
+  border-radius:25px;
+  border:1px solid #ccc;
+}
+.input-box button{
+  margin-left:8px;
+  width:45px;
+  height:45px;
+  border:none;
+  border-radius:50%;
+  background:#25d366;
+  color:white;
+  font-size:18px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="header">💬 Chat App</div>
+
+<div class="username-box">
+  <input id="username" placeholder="Enter your name">
+</div>
+
+<div id="chat" class="chat"></div>
+
+<div class="input-box">
+  <input id="message" placeholder="Type a message">
+  <button id="send">➤</button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const chat = document.getElementById("chat");
+
+document.getElementById("send").onclick = send;
+document.getElementById("message").addEventListener("keypress", e=>{
+  if(e.key==="Enter") send();
+});
+
+function send(){
+  const user = username.value.trim();
+  const msg = message.value.trim();
+  if(!user || !msg) return;
+
+  socket.emit("sendMessage",{user,message:msg});
+  message.value="";
+}
+
+socket.on("receiveMessage", data=>{
+  const div = document.createElement("div");
+
+  // MY message = RIGHT | OTHER = LEFT
+  div.className = "msg " + (data.user===username.value ? "right":"left");
+
+  div.innerHTML = `
+    <div class="user">${data.user}</div>
+    <div>${data.message}</div>
+  `;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+});
+</script>
+
+</body>
+</html>
