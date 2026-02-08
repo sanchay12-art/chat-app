@@ -16,6 +16,13 @@ function saveDB(){
   fs.writeFileSync(DB, JSON.stringify(chats, null, 2));
 }
 
+function getTime(){
+  const d = new Date();
+  const h = String(d.getHours()).padStart(2,"0");
+  const m = String(d.getMinutes()).padStart(2,"0");
+  return `${h}:${m}`;
+}
+
 io.on("connection", (socket) => {
 
   socket.on("joinRoom", ({ room, user }) => {
@@ -25,9 +32,10 @@ io.on("connection", (socket) => {
 
     if(!chats[room]) chats[room] = [];
 
+    // load old messages
     socket.emit("loadOldMessages", chats[room]);
 
-    // 👉 notify others that THIS user is online
+    // notify OTHERS that this user is online
     socket.to(room).emit("friendStatus", {
       user,
       status: "online"
@@ -39,10 +47,7 @@ io.on("connection", (socket) => {
       id: Date.now(),
       user,
       text: message,
-      time: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit"
-      }),
+      time: getTime(),
       seen: false
     };
 
