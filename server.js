@@ -27,8 +27,9 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", (data) => {
     const msg = {
       id: Date.now(),
-      user: data.user,      // sender name
-      text: data.message
+      user: data.user,
+      text: data.message,
+      seen: false
     };
 
     chats[data.room].push(msg);
@@ -37,7 +38,19 @@ io.on("connection", (socket) => {
     io.to(data.room).emit("receiveMessage", msg);
   });
 
+  // 👁️ BLUE SEEN
+  socket.on("messageSeen", ({ room, msgId }) => {
+    const msgs = chats[room] || [];
+    const m = msgs.find(x => x.id === msgId);
+    if(m){
+      m.seen = true;
+      saveDB();
+      io.to(room).emit("messageSeenUpdate", msgId);
+    }
+  });
+
 });
+
 server.listen(3000, () =>
   console.log("Server running on port 3000")
 );
