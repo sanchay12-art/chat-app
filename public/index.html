@@ -43,15 +43,14 @@ body{
   padding:14px;
   text-align:center;
   font-size:18px;
-  font-weight:600;
 }
 
 /* LOGIN */
-.username{
-  padding:8px;
+.login{
+  padding:10px;
   background:#f5f5f5;
 }
-.username input{
+.login input{
   width:100%;
   padding:10px;
   margin-bottom:6px;
@@ -61,7 +60,7 @@ body{
 
 /* CHAT */
 .chat{
-  height:calc(100vh - 270px);
+  height:calc(100vh - 260px);
   overflow-y:auto;
   padding:10px;
 }
@@ -71,39 +70,46 @@ body{
   margin:8px 0;
   border-radius:14px;
   font-size:14px;
-  opacity:0;
+  animation:.3s fadeIn;
 }
-.user{font-size:11px;color:#555;margin-bottom:3px}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1}}
+
 .right{
   background:var(--my);
   margin-left:auto;
-  border-bottom-right-radius:0;
-  animation:send .3s forwards;
 }
 .left{
   background:var(--other);
   margin-right:auto;
-  border-bottom-left-radius:0;
-  animation:recv .3s forwards;
 }
-@keyframes send{from{transform:translateX(40px);opacity:0}to{opacity:1}}
-@keyframes recv{from{transform:translateX(-40px);opacity:0}to{opacity:1}}
 
-.tick{font-size:11px;color:#777}
-.seen{color:#2196f3}
-.tick-box{text-align:right;margin-top:2px}
-
+/* INPUT */
 .input-box{
-  display:flex;padding:10px;background:#f0f0f0
+  display:flex;
+  padding:10px;
+  background:#f0f0f0;
 }
 .input-box input{
-  flex:1;padding:10px;border-radius:25px;border:1px solid #ccc
+  flex:1;
+  padding:10px;
+  border-radius:25px;
+  border:1px solid #ccc;
 }
 .input-box button{
-  margin-left:8px;width:45px;height:45px;border:none;
-  border-radius:50%;background:var(--accent);color:white
+  margin-left:8px;
+  width:45px;
+  border:none;
+  border-radius:50%;
+  background:var(--accent);
+  color:white;
+  font-size:18px;
 }
-.footer{text-align:center;font-size:12px;color:#555;padding:6px}
+
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#555;
+}
 </style>
 </head>
 
@@ -116,16 +122,17 @@ body{
 
 <div class="header">Private Chat</div>
 
-<div class="username">
+<div class="login">
   <input id="userId" placeholder="User ID">
   <input id="password" type="password" placeholder="Password">
+  <button onclick="login()">Login</button>
 </div>
 
 <div id="chat" class="chat"></div>
 
 <div class="input-box">
-  <input id="message" placeholder="Type a message">
-  <button id="send">➤</button>
+  <input id="message" placeholder="Type message">
+  <button onclick="send()">➤</button>
 </div>
 
 <div class="footer">Developed by Sanchay Dutt</div>
@@ -137,31 +144,44 @@ body{
 <script>
 const socket = io();
 const chat = document.getElementById("chat");
-const userIdInput = document.getElementById("userId");
-const passwordInput = document.getElementById("password");
 const sendSound = document.getElementById("sendSound");
 const receiveSound = document.getElementById("receiveSound");
 
-// JOIN ROOM
-function joinRoom(){
-  if(userIdInput.value && passwordInput.value){
-    socket.emit("joinRoom",{
-      userId:userIdInput.value,
-      password:passwordInput.value
-    });
-  }
-}
-userIdInput.onblur = joinRoom;
-passwordInput.onblur = joinRoom;
+let USER = "", PASS = "";
 
-document.getElementById("send").onclick = send;
+function login(){
+  USER = userId.value.trim();
+  PASS = password.value.trim();
+  if(!USER || !PASS) return alert("Enter ID & Password");
+
+  localStorage.setItem("uid", USER);
+  localStorage.setItem("pwd", PASS);
+
+  socket.emit("joinRoom",{userId:USER,password:PASS});
+}
+
+// auto login if saved
+if(localStorage.getItem("uid")){
+  USER = localStorage.getItem("uid");
+  PASS = localStorage.getItem("pwd");
+  socket.emit("joinRoom",{userId:USER,password:PASS});
+}
+
+function addMsg(text, mine){
+  const d=document.createElement("div");
+  d.className="msg "+(mine?"right":"left");
+  d.innerText=text;
+  chat.appendChild(d);
+  chat.scrollTop=chat.scrollHeight;
+}
 
 function send(){
-  if(!userIdInput.value || !passwordInput.value || !message.value) return;
+  if(!USER) return alert("Login first");
+  if(!message.value) return;
 
   socket.emit("sendMessage",{
-    userId:userIdInput.value,
-    password:passwordInput.value,
+    userId:USER,
+    password:PASS,
     message:message.value
   });
 
@@ -169,36 +189,16 @@ function send(){
   message.value="";
 }
 
-socket.on("receiveMessage",data=>{
-  const mine = data.userId === userIdInput.value;
-  const div=document.createElement("div");
-
-  div.className="msg "+(mine?"right":"left");
-  div.setAttribute("data-id",data.id);
-
-  div.innerHTML=`
-    <div class="user">${data.userId}</div>
-    <div>${data.message}</div>
-    ${mine?`<div class="tick-box">
-      <span class="tick" id="t${data.id}">✔✔</span>
-    </div>`:""}
-  `;
-  chat.appendChild(div);
-  chat.scrollTop=chat.scrollHeight;
-
-  if(!mine){
-    receiveSound.play();
-    socket.emit("messageSeen",{
-      msgId:data.id,
-      userId:userIdInput.value,
-      password:passwordInput.value
-    });
-  }
+socket.on("loadOldMessages", msgs=>{
+  chat.innerHTML="";
+  msgs.forEach(m=>{
+    addMsg(m.text, m.user===USER);
+  });
 });
 
-socket.on("messageSeenUpdate",id=>{
-  const t=document.getElementById("t"+id);
-  if(t) t.classList.add("seen");
+socket.on("receiveMessage", m=>{
+  addMsg(m.text, m.user===USER);
+  if(m.user!==USER) receiveSound.play();
 });
 </script>
 
