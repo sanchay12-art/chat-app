@@ -1,1 +1,34 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h2>Your Chats</h2>
+<div id="list"></div>
+<input id="friend" placeholder="New friend">
+<button onclick="openChat()">Open</button>
 
+<script>
+const uid = localStorage.getItem("uid");
+const pwd = localStorage.getItem("pwd");
+
+fetch("/getChats",{
+  method:"POST",
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({userId:uid,password:pwd})
+})
+.then(r=>r.json())
+.then(data=>{
+  for(let f in data){
+    const d=document.createElement("div");
+    d.innerText=f;
+    d.onclick=()=>openChat(f);
+    list.appendChild(d);
+  }
+});
+
+function openChat(name=friend.value){
+  localStorage.setItem("friend",name);
+  location.href="chat.html";
+}
+</script>
+</body>
+</html>
