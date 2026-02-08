@@ -44,10 +44,9 @@ body{
   text-align:center;
   font-size:18px;
 }
-
 .status{
   font-size:12px;
-  opacity:.8;
+  opacity:.85;
 }
 
 /* LOGIN */
@@ -70,6 +69,7 @@ body{
   padding:10px;
 }
 
+/* MESSAGE */
 .msg{
   max-width:75%;
   padding:8px 12px;
@@ -81,6 +81,9 @@ body{
   font-size:11px;
   color:#555;
 }
+.text{
+  margin:2px 0;
+}
 .time{
   font-size:10px;
   color:#777;
@@ -89,14 +92,17 @@ body{
 .right{
   background:var(--my);
   margin-left:auto;
+  border-bottom-right-radius:0;
 }
 .left{
   background:var(--other);
   margin-right:auto;
+  border-bottom-left-radius:0;
 }
 .tick{
   font-size:11px;
   color:#777;
+  text-align:right;
 }
 .seen{
   color:#2196f3;
@@ -124,9 +130,9 @@ body{
   font-size:18px;
 }
 
-.typing{
+.footer{
+  text-align:center;
   font-size:12px;
-  padding-left:10px;
   color:#555;
 }
 </style>
@@ -134,8 +140,9 @@ body{
 
 <body>
 
+<!-- SPLASH -->
 <div id="splash">
-  <h2>Chat App</h2>
+  <h2>💬 Chat App</h2>
   <p>Developed by <b>Sanchay Dutt</b></p>
 </div>
 
@@ -151,85 +158,139 @@ body{
 </div>
 
 <div id="chat" class="chat"></div>
-<div id="typing" class="typing"></div>
 
 <div class="input-box">
   <input id="message" placeholder="Type message" oninput="typing()">
   <button onclick="send()">➤</button>
 </div>
 
+<div class="footer">Developed by Sanchay Dutt</div>
+
+<!-- SOUND -->
 <audio id="sendSound" src="send.mp3"></audio>
 <audio id="receiveSound" src="receive.mp3"></audio>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+/* ================= SETUP ================= */
 const socket = io();
+
 const chat = document.getElementById("chat");
 const statusDiv = document.getElementById("status");
-const typingDiv = document.getElementById("typing");
+const sendSound = document.getElementById("sendSound");
+const receiveSound = document.getElementById("receiveSound");
 
-let ROOM="", USER="";
+let ROOM = "";
+let USER = "";
+let typingTimer = null;
 
+/* ================= LOGIN ================= */
 function login(){
   ROOM = room.value.trim();
   USER = username.value.trim();
-  if(!ROOM || !USER) return alert("Enter room & name");
-  socket.emit("joinRoom",{room:ROOM,user:USER});
+
+  if(!ROOM || !USER){
+    alert("Room ID aur Name dono daalo");
+    return;
+  }
+
+  socket.emit("joinRoom", {
+    room: ROOM,
+    user: USER
+  });
 }
 
-function addMsg(m){
-  const mine = m.user===USER;
-  const d=document.createElement("div");
-  d.className="msg "+(mine?"right":"left");
-  d.innerHTML=`
-    <div class="sender">${m.user}</div>
-    <div>${m.text}</div>
-    <div class="time">${m.time}</div>
-    ${mine?`<div class="tick ${m.seen?"seen":""}" id="t${m.id}">✔✔</div>`:""}
-  `;
-  chat.appendChild(d);
-  chat.scrollTop=chat.scrollHeight;
+/* ================= ADD MESSAGE ================= */
+function addMessage(msg){
+  const mine = msg.user === USER;
 
+  const div = document.createElement("div");
+  div.className = "msg " + (mine ? "right" : "left");
+  div.setAttribute("data-id", msg.id);
+
+  div.innerHTML = `
+    <div class="sender">${msg.user}</div>
+    <div class="text">${msg.text}</div>
+    <div class="time">${msg.time}</div>
+    ${mine ? `<div class="tick ${msg.seen ? "seen" : ""}" id="t${msg.id}">✔✔</div>` : ""}
+  `;
+
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+
+  // seen trigger (receiver only)
   if(!mine){
-    socket.emit("messageSeen",{room:ROOM,msgId:m.id});
+    socket.emit("messageSeen", {
+      room: ROOM,
+      msgId: msg.id
+    });
   }
 }
 
+/* ================= SEND ================= */
 function send(){
-  if(!ROOM) return;
-  if(!message.value) return;
+  if(!ROOM){
+    alert("Pehle Join Chat karo");
+    return;
+  }
 
-  socket.emit("sendMessage",{room:ROOM,user:USER,message:message.value});
+  if(!message.value.trim()) return;
+
+  socket.emit("sendMessage", {
+    room: ROOM,
+    user: USER,
+    message: message.value
+  });
+
+  sendSound.currentTime = 0;
   sendSound.play();
-  message.value="";
+  message.value = "";
 }
 
+/* ================= TYPING ================= */
 function typing(){
-  if(ROOM) socket.emit("typing",{room:ROOM,user:USER});
+  if(!ROOM) return;
+  socket.emit("typing", {
+    room: ROOM,
+    user: USER
+  });
 }
 
-socket.on("typing",user=>{
-  typingDiv.innerText = user+" is typing...";
-  setTimeout(()=>typingDiv.innerText="",1000);
+/* ================= SOCKET EVENTS ================= */
+
+// Load old messages
+socket.on("loadOldMessages", msgs => {
+  chat.innerHTML = "";
+  msgs.forEach(addMessage);
 });
 
-socket.on("userStatus",d=>{
-  statusDiv.innerText = d.user+" is "+d.status;
+// Receive message
+socket.on("receiveMessage", msg => {
+  addMessage(msg);
+  if(msg.user !== USER){
+    receiveSound.currentTime = 0;
+    receiveSound.play();
+  }
 });
 
-socket.on("loadOldMessages",msgs=>{
-  chat.innerHTML="";
-  msgs.forEach(addMsg);
+// Blue tick update
+socket.on("messageSeenUpdate", msgId => {
+  const tick = document.getElementById("t" + msgId);
+  if(tick) tick.classList.add("seen");
 });
 
-socket.on("receiveMessage",m=>{
-  addMsg(m);
-  if(m.user!==USER) receiveSound.play();
+// Typing indicator (friend only)
+socket.on("typing", user => {
+  statusDiv.innerText = user + " is typing...";
+  clearTimeout(typingTimer);
+  typingTimer = setTimeout(() => {
+    statusDiv.innerText = "";
+  }, 1200);
 });
 
-socket.on("messageSeenUpdate",id=>{
-  const t=document.getElementById("t"+id);
-  if(t) t.classList.add("seen");
+// Friend online/offline
+socket.on("friendStatus", data => {
+  statusDiv.innerText = data.user + " is " + data.status;
 });
 </script>
 
