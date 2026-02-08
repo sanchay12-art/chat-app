@@ -90,8 +90,11 @@ body{
 }
 .tick{
   font-size:11px;
-  color:#777;
   text-align:right;
+  color:#777;
+}
+.seen{
+  color:#2196f3; /* BLUE */
 }
 
 /* INPUT */
@@ -167,20 +170,28 @@ function login(){
   socket.emit("joinRoom",{room:ROOM});
 }
 
-function addMsg(name,text,mine){
+function addMsg(m){
+  const mine = m.user === USER;
   const d=document.createElement("div");
   d.className="msg "+(mine?"right":"left");
+  d.setAttribute("data-id",m.id);
+
   d.innerHTML=`
-    <div class="sender">${name}</div>
-    <div>${text}</div>
-    ${mine?`<div class="tick">✔✔</div>`:""}
+    <div class="sender">${m.user}</div>
+    <div>${m.text}</div>
+    ${mine?`<div class="tick ${m.seen?"seen":""}" id="t${m.id}">✔✔</div>`:""}
   `;
   chat.appendChild(d);
   chat.scrollTop=chat.scrollHeight;
+
+  if(!mine){
+    receiveSound.play();
+    socket.emit("messageSeen",{room:ROOM,msgId:m.id});
+  }
 }
 
 function send(){
-  if(!ROOM) return alert("Join chat first");
+  if(!ROOM || !USER) return alert("Join chat first");
   if(!message.value) return;
 
   socket.emit("sendMessage",{
@@ -195,14 +206,14 @@ function send(){
 
 socket.on("loadOldMessages",msgs=>{
   chat.innerHTML="";
-  msgs.forEach(m=>{
-    addMsg(m.user,m.text,m.user===USER);
-  });
+  msgs.forEach(addMsg);
 });
 
-socket.on("receiveMessage",m=>{
-  addMsg(m.user,m.text,m.user===USER);
-  if(m.user!==USER) receiveSound.play();
+socket.on("receiveMessage",addMsg);
+
+socket.on("messageSeenUpdate",id=>{
+  const t=document.getElementById("t"+id);
+  if(t) t.classList.add("seen");
 });
 </script>
 
