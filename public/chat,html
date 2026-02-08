@@ -1,1 +1,37 @@
+<!DOCTYPE html>
+<html>
+<body>
+<h3 id="title"></h3>
+<div id="chat"></div>
+<input id="msg">
+<button onclick="send()">Send</button>
 
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+const uid = localStorage.getItem("uid");
+const pwd = localStorage.getItem("pwd");
+const friend = localStorage.getItem("friend");
+
+title.innerText = "Chat with " + friend;
+
+socket.emit("joinRoom",{userId:uid,password:pwd,friend});
+
+function send(){
+  socket.emit("sendMessage",{
+    userId:uid,
+    password:pwd,
+    friend,
+    message:msg.value
+  });
+  msg.value="";
+}
+
+socket.on("receiveMessage",m=>{
+  const d=document.createElement("div");
+  d.innerText=m.user+": "+m.text;
+  chat.appendChild(d);
+});
+</script>
+</body>
+</html>
