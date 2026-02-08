@@ -146,19 +146,23 @@ body{
   <p>Developed by <b>Sanchay Dutt</b></p>
 </div>
 
+<!-- HEADER -->
 <div class="header">
   Private Chat
   <div id="status" class="status"></div>
 </div>
 
+<!-- LOGIN -->
 <div class="login">
   <input id="room" placeholder="Room ID (same for both)">
   <input id="username" placeholder="Your Name">
   <button onclick="login()">Join Chat</button>
 </div>
 
+<!-- CHAT AREA -->
 <div id="chat" class="chat"></div>
 
+<!-- INPUT -->
 <div class="input-box">
   <input id="message" placeholder="Type message" oninput="typing()">
   <button onclick="send()">➤</button>
@@ -182,6 +186,7 @@ const receiveSound = document.getElementById("receiveSound");
 
 let ROOM = "";
 let USER = "";
+let FRIEND = "";
 let typingTimer = null;
 
 /* ================= LOGIN ================= */
@@ -194,19 +199,17 @@ function login(){
     return;
   }
 
-  socket.emit("joinRoom", {
-    room: ROOM,
-    user: USER
-  });
+  socket.emit("joinRoom", { room: ROOM, user: USER });
 }
 
 /* ================= ADD MESSAGE ================= */
 function addMessage(msg){
   const mine = msg.user === USER;
 
+  if(!mine) FRIEND = msg.user;
+
   const div = document.createElement("div");
   div.className = "msg " + (mine ? "right" : "left");
-  div.setAttribute("data-id", msg.id);
 
   div.innerHTML = `
     <div class="sender">${msg.user}</div>
@@ -218,23 +221,14 @@ function addMessage(msg){
   chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 
-  // seen trigger (receiver only)
   if(!mine){
-    socket.emit("messageSeen", {
-      room: ROOM,
-      msgId: msg.id
-    });
+    socket.emit("messageSeen", { room: ROOM, msgId: msg.id });
   }
 }
 
 /* ================= SEND ================= */
 function send(){
-  if(!ROOM){
-    alert("Pehle Join Chat karo");
-    return;
-  }
-
-  if(!message.value.trim()) return;
+  if(!ROOM || !message.value.trim()) return;
 
   socket.emit("sendMessage", {
     room: ROOM,
@@ -249,22 +243,20 @@ function send(){
 
 /* ================= TYPING ================= */
 function typing(){
-  if(!ROOM) return;
-  socket.emit("typing", {
-    room: ROOM,
-    user: USER
-  });
+  if(ROOM){
+    socket.emit("typing", { room: ROOM, user: USER });
+  }
 }
 
 /* ================= SOCKET EVENTS ================= */
 
-// Load old messages
+// load old messages
 socket.on("loadOldMessages", msgs => {
   chat.innerHTML = "";
   msgs.forEach(addMessage);
 });
 
-// Receive message
+// receive new message
 socket.on("receiveMessage", msg => {
   addMessage(msg);
   if(msg.user !== USER){
@@ -273,24 +265,29 @@ socket.on("receiveMessage", msg => {
   }
 });
 
-// Blue tick update
+// blue tick update
 socket.on("messageSeenUpdate", msgId => {
   const tick = document.getElementById("t" + msgId);
   if(tick) tick.classList.add("seen");
 });
 
-// Typing indicator (friend only)
+// friend typing
 socket.on("typing", user => {
-  statusDiv.innerText = user + " is typing...";
-  clearTimeout(typingTimer);
-  typingTimer = setTimeout(() => {
-    statusDiv.innerText = "";
-  }, 1200);
+  if(user !== USER){
+    statusDiv.innerText = user + " is typing...";
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => {
+      statusDiv.innerText = FRIEND ? FRIEND + " online" : "";
+    }, 1200);
+  }
 });
 
-// Friend online/offline
+// friend online / offline
 socket.on("friendStatus", data => {
-  statusDiv.innerText = data.user + " is " + data.status;
+  if(data.user !== USER){
+    FRIEND = data.user;
+    statusDiv.innerText = data.user + " is " + data.status;
+  }
 });
 </script>
 
