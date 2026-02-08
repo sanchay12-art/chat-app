@@ -22,7 +22,7 @@ body{
   overflow:hidden;
 }
 
-/* ===== SPLASH (SAME AS OLD UI) ===== */
+/* ===== SPLASH ===== */
 #splash{
   position:fixed;
   inset:0;
@@ -116,17 +116,9 @@ body{
 }
 
 /* ===== TICKS ===== */
-.tick{
-  font-size:11px;
-  color:#777;
-}
-.seen{
-  color:#2196f3;
-}
-.tick-box{
-  text-align:right;
-  margin-top:2px;
-}
+.tick{font-size:11px;color:#777}
+.seen{color:#2196f3}
+.tick-box{text-align:right;margin-top:2px}
 
 /* ===== INPUT ===== */
 .input-box{
@@ -185,12 +177,18 @@ body{
 
 <div class="footer">Developed by Sanchay Dutt</div>
 
+<!-- 🔊 SOUND FILES -->
+<audio id="sendSound" src="send.mp3"></audio>
+<audio id="receiveSound" src="receive.mp3"></audio>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 const chat = document.getElementById("chat");
 const userInput = document.getElementById("username");
 const friendInput = document.getElementById("friend");
+const sendSound = document.getElementById("sendSound");
+const receiveSound = document.getElementById("receiveSound");
 
 /* JOIN PRIVATE ROOM */
 function joinRoom(){
@@ -205,6 +203,9 @@ userInput.onblur = joinRoom;
 friendInput.onblur = joinRoom;
 
 document.getElementById("send").onclick = send;
+document.getElementById("message").addEventListener("keypress",e=>{
+  if(e.key==="Enter") send();
+});
 
 function send(){
   const user = userInput.value.trim();
@@ -213,6 +214,10 @@ function send(){
   if(!user || !friend || !msg) return;
 
   socket.emit("sendMessage",{user,friend,message:msg});
+
+  sendSound.currentTime = 0;
+  sendSound.play();
+
   message.value="";
 }
 
@@ -235,6 +240,9 @@ socket.on("receiveMessage",data=>{
   chat.scrollTop = chat.scrollHeight;
 
   if(!mine){
+    receiveSound.currentTime = 0;
+    receiveSound.play();
+
     socket.emit("messageSeen",{
       msgId:data.id,
       user:userInput.value,
