@@ -11,7 +11,6 @@ app.use(express.static("public"));
 
 const DB = "chat-db.json";
 let chats = fs.existsSync(DB) ? JSON.parse(fs.readFileSync(DB)) : {};
-let onlineUsers = {}; // room -> Set(users)
 
 function saveDB(){
   fs.writeFileSync(DB, JSON.stringify(chats, null, 2));
@@ -22,16 +21,14 @@ io.on("connection", (socket) => {
   socket.on("joinRoom", ({ room, user }) => {
     socket.room = room;
     socket.user = user;
-
     socket.join(room);
 
     if(!chats[room]) chats[room] = [];
-    if(!onlineUsers[room]) onlineUsers[room] = new Set();
-
-    onlineUsers[room].add(user);
 
     socket.emit("loadOldMessages", chats[room]);
-    io.to(room).emit("userStatus", {
+
+    // 👉 notify others that THIS user is online
+    socket.to(room).emit("friendStatus", {
       user,
       status: "online"
     });
@@ -42,7 +39,10 @@ io.on("connection", (socket) => {
       id: Date.now(),
       user,
       text: message,
-      time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      }),
       seen: false
     };
 
@@ -66,11 +66,9 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    const { room, user } = socket;
-    if(room && user && onlineUsers[room]){
-      onlineUsers[room].delete(user);
-      io.to(room).emit("userStatus", {
-        user,
+    if(socket.room && socket.user){
+      socket.to(socket.room).emit("friendStatus", {
+        user: socket.user,
         status: "offline"
       });
     }
